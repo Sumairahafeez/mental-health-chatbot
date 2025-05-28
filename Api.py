@@ -1,17 +1,26 @@
 import google.generativeai as genai
 
-genai.configure(api_key="AIzaSyBvblnLVgJ50eZyGzaEqx-tMC94lZNRSHk")
 
-models = genai.list_models()
+def test_gemini():
+    genai.configure(api_key="AIzaSyBq1zON_vbXdkKWmJcr_oc59NnxbSg76CM")
 
-for model in models:
-    print(f"Model Name: {model.name}")
-    print(f"Display Name: {model.display_name}")
-    print(f"Description: {model.description}")
-    print(f"Supported Methods: {model.supported_generation_methods}")
-    print(f"Input Token Limit: {model.input_token_limit}")
-    print(f"Output Token Limit: {model.output_token_limit}")
-    print(f"Temperature: {model.temperature}")
-    print(f"Top K: {model.top_k}")
-    print(f"Top P: {model.top_p}")
-    print("-" * 50)
+    model = genai.GenerativeModel('gemini-2.0-flash')
+
+    prompt = "Tell me a fun fact about the moon."
+
+    print("Sending request to Gemini...")
+
+    try:
+        response = model.generate_content(contents=[prompt])
+
+        print("Response received")
+
+        if response.text is None:
+            print("Error from Gemini API:", response.error)
+        else:
+            print("Generated text:", response.text)
+    except Exception as e:
+        print("Exception while calling Gemini:", str(e))
+
+if __name__ == "__main__":
+    test_gemini()

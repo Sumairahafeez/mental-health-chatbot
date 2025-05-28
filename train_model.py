@@ -42,35 +42,43 @@ class StudentMentalHealthPredictor:
         # Handle missing values
         df = df.dropna()
         
+        # Identify the target column - likely to be "Do you have Depression?"
+        possible_target_cols = [col for col in df.columns if 'depression' in col.lower()]
+        
+        if possible_target_cols:
+            target_col = possible_target_cols[0]
+        else:
+            # If no depression column, look for other mental health indicators
+            possible_targets = [col for col in df.columns if any(word in col.lower() 
+                              for word in ['mental', 'health', 'treatment', 'anxiety', 'panic'])]
+            if possible_targets:
+                target_col = possible_targets[-1]  # Use the last one as it might be most relevant
+            else:
+                target_col = df.columns[-1]  # Use last column as fallback
+        
+        print(f"Using target column: {target_col}")
+        
         # Encode categorical variables
         categorical_columns = df.select_dtypes(include=['object']).columns
         
         for col in categorical_columns:
-            if col != 'Do you have Depression?':  # Assuming this is our target variable
+            if col != target_col:
                 le = LabelEncoder()
                 df[col] = le.fit_transform(df[col])
                 self.label_encoders[col] = le
         
-        # Prepare features and target
-        target_col = 'Do you have Depression?'  # Adjust based on actual column name
-        if target_col not in df.columns:
-            # Find the likely target column
-            possible_targets = [col for col in df.columns if 'depression' in col.lower() or 'mental' in col.lower()]
-            if possible_targets:
-                target_col = possible_targets[0]
-            else:
-                target_col = df.columns[-1]  # Use last column as target
-        
-        # Encode target variable
+        # Encode target variable if it's categorical
         if target_col in categorical_columns:
             le_target = LabelEncoder()
             df[target_col] = le_target.fit_transform(df[target_col])
             self.label_encoders['target'] = le_target
         
+        # Prepare features and target
         X = df.drop(columns=[target_col])
         y = df[target_col]
         
         self.feature_columns = X.columns.tolist()
+        print(f"Feature columns: {self.feature_columns}")
         
         # Scale features
         X_scaled = self.scaler.fit_transform(X)
@@ -154,14 +162,27 @@ class StudentMentalHealthPredictor:
         if isinstance(input_data, dict):
             input_data = pd.DataFrame([input_data])
         
-        # Preprocess input data
+        # Make sure we only use the features that were used during training
         processed_data = input_data.copy()
         
-        # Apply label encoders
+        # Only keep columns that exist in feature_columns
+        available_features = [col for col in self.feature_columns if col in processed_data.columns]
+        missing_features = [col for col in self.feature_columns if col not in processed_data.columns]
+        
+        if missing_features:
+            print(f"Warning: Missing features will be filled with 0: {missing_features}")
+            # Add missing features with default values
+            for col in missing_features:
+                processed_data[col] = 0
+        
+        # Select only the training features in the correct order
+        processed_data = processed_data[self.feature_columns]
+        
+        # Apply label encoders to categorical columns
         for col in processed_data.columns:
             if col in self.label_encoders and col != 'target':
                 le = self.label_encoders[col]
-                # Handle unseen categories
+                # Handle unseen categories by using the most frequent class or 0
                 processed_data[col] = processed_data[col].apply(
                     lambda x: le.transform([x])[0] if x in le.classes_ else 0
                 )
